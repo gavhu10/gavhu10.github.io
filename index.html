@@ -1,57 +1,57 @@
-<!DOCTYPE ,[object Object],>
-<,[object Object],>
-<,[object Object],>
-    <,[object Object], ,[object Object],=,[object Object],></,[object Object],>
-</,[object Object],>
-<,[object Object],>
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.85.2/dist/phaser-arcade-physics.min.js"></script>
+</head>
+<body>
 
-    <,[object Object],>
-    ,[object Object], ,[object Object], ,[object Object], ,[object Object],
+    <script>
+    class Example extends Phaser.Scene
     {
         preload ()
         {
-            ,[object Object],.,[object Object],.,[object Object],(,[object Object],);
+            this.load.setBaseURL('https://cdn.phaserfiles.com/v385');
 
-            ,[object Object],.,[object Object],.,[object Object],(,[object Object],, ,[object Object],);
-            ,[object Object],.,[object Object],.,[object Object],(,[object Object],, ,[object Object],);
-            ,[object Object],.,[object Object],.,[object Object],(,[object Object],, ,[object Object],);
+            this.load.image('sky', 'assets/skies/space3.png');
+            this.load.image('logo', 'assets/sprites/phaser3-logo.png');
+            this.load.image('red', 'assets/particles/red.png');
         }
 
         create ()
         {
-            ,[object Object],.,[object Object],.,[object Object],(,[object Object],, ,[object Object],, ,[object Object],);
+            this.add.image(400, 300, 'sky');
 
-            ,[object Object], particles = ,[object Object],.,[object Object],.,[object Object],(,[object Object],, ,[object Object],, ,[object Object],, {
-                ,[object Object],: ,[object Object],,
-                ,[object Object],: { ,[object Object],: ,[object Object],, ,[object Object],: ,[object Object], },
-                ,[object Object],: ,[object Object],
+            const particles = this.add.particles(0, 0, 'red', {
+                speed: 100,
+                scale: { start: 1, end: 0 },
+                blendMode: 'ADD'
             });
 
-            ,[object Object], logo = ,[object Object],.,[object Object],.,[object Object],.,[object Object],(,[object Object],, ,[object Object],, ,[object Object],);
+            const logo = this.physics.add.image(400, 100, 'logo');
 
-            logo.,[object Object],(,[object Object],, ,[object Object],);
-            logo.,[object Object],(,[object Object],, ,[object Object],);
-            logo.,[object Object],(,[object Object],);
+            logo.setVelocity(100, 200);
+            logo.setBounce(1, 1);
+            logo.setCollideWorldBounds(true);
 
-            particles.,[object Object],(logo);
+            particles.startFollow(logo);
         }
     }
 
-    ,[object Object], config = {
-        ,[object Object],: ,[object Object],.,[object Object],,
-        ,[object Object],: ,[object Object],,
-        ,[object Object],: ,[object Object],,
-        ,[object Object],: ,[object Object],,
-        ,[object Object],: {
-            ,[object Object],: ,[object Object],,
-            ,[object Object],: {
-                ,[object Object],: { ,[object Object],: ,[object Object], }
+    const config = {
+        type: Phaser.AUTO,
+        width: 800,
+        height: 600,
+        scene: Example,
+        physics: {
+            default: 'arcade',
+            arcade: {
+                gravity: { y: 200 }
             }
         }
     };
 
-    ,[object Object], game = ,[object Object], ,[object Object],.,[object Object],(config);
-    </,[object Object],>
+    const game = new Phaser.Game(config);
+    </script>
 
-</,[object Object],>
-</,[object Object],>
+</body>
+</html>
