@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Click the Blue Squares!</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #111; /* Dark background */
+            font-family: 'Arial', sans-serif;
+            overflow: hidden; /* Prevent scrollbars */
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px; /* Increased max-width for larger screens */
+            box-sizing: border-box;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Center content horizontally */
+            /* No background-color here, let the game canvas handle it */
+        }
+
+        #gameCanvas {
+            border: 2px solid #333; /* Darker border */
+            border-radius: 8px; /* Slightly more rounded corners */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5); /* More subtle shadow */
+            background-color: #1c1c1c;
+            /* width and height will be set by Phaser, but ensure it scales */
+            width: 100%;
+            height: auto;
+            max-height: 600px; /* Max height to maintain aspect ratio and prevent overflow*/
+            aspect-ratio: 8 / 6;
+        }
+
+        #scoreDisplay {
+            font-size: 24px; /* Larger font size */
+            color: #eee; /* Light text color */
+            margin-bottom: 15px; /* Increased margin */
+            text-align: center; /* Center the score */
+            width: 100%; /* Full width for centering */
+            /* Add text shadow for better visibility on dark backgrounds */
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+        }
+
+        #messageDisplay {
+            position: absolute; /* Use absolute positioning for overlay */
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8); /* Darker background with opacity */
+            color: #fff;
+            font-size: 30px; /* Larger font size */
+            padding: 20px 30px; /* Slightly increased padding */
+            border-radius: 10px; /* More rounded corners */
+            text-align: center;
+            display: none; /* Initially hidden */
+            z-index: 10; /* Ensure it's on top of everything */
+            border: 2px solid #444; /* Darker border */
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.9); /* Stronger shadow */
+        }
+
+        #messageDisplay button {
+            margin-top: 15px; /* Increased margin */
+            padding: 10px 20px;
+            font-size: 18px; /* Larger font size */
+            color: #fff;
+            background-color: #4CAF50; /* Green button */
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            border-bottom: 3px solid #388E3C; /* Darker green bottom border */
+            text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.5);
+        }
+
+        #messageDisplay button:hover {
+            background-color: #45a049; /* Slightly darker green */
+        }
+
+        #messageDisplay button:active {
+            background-color: #388E3C; /* Even darker green */
+            border-bottom-width: 0; /* Remove bottom border on active */
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5); /* Simulate button press */
+            transform: translateY(2px); /* Move the button down slightly */
+        }
+
+        .game-over-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none; /* Initially hidden */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .game-over-content {
+            text-align: center;
+            padding: 20px;
+            border-radius: 10px;
+            border: 4px solid #555;
+            background-color: #222;
+        }
+
+        .game-over-title {
+            font-size: 36px;
+            color: #f00;
+            margin-bottom: 20px;
+        }
+
+        .game-over-score {
+            font-size: 24px;
+            color: #eee;
+            margin-bottom: 30px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="scoreDisplay">Score: 0</div>
+        <canvas id="gameCanvas"></canvas>
+        <div id="messageDisplay">
+            <p id="messageText">Game Over</p>
+            <button id="restartButton">Restart</button>
+        </div>
+        <div class="game-over-overlay">
+                <div class="game-over-content">
+                    <h2 class="game-over-title">Game Over</h2>
+                    <p class="game-over-score">Your Score: <span id="finalScore">0</span></p>
+                    <button id="restartButtonOverlay">Restart</button>
+                </div>
+            </div>
+    </div>
+
+    <script>
+        const config = {
+            type: Phaser.CANVAS, // Use CANVAS rendering
+            width: 800,
+            height: 600,
+            canvas: document.getElementById('gameCanvas'), // Use the canvas element from the HTML
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    gravity: { y: 0 }, // No gravity
+                    debug: false // Set to true for debugging physics
+                }
+            },
+            scene: {
+                create: create,
+                update: update
+            }
+        };
+
+        const game = new Phaser.Game(config);
+
+        let score = 0;
+        let scoreDisplay;
+        let squares = [];
+        let messageDisplay;
+        let messageText;
+        let gameRunning = true;
+        let restartButton;
+        let redSquareColor = 0xFF0000;  // Red color
+        let blueSquareColor = 0x0000FF; // Blue color
+        let gameOverOverlay;
+        let finalScoreDisplay;
+        let restartButtonOverlay;
+        let phaserGame; // Store the Phaser game instance
+        let particles; // Particle emitter
+        let numSquaresCreated = 0;
+
+
+        function create() {
+            phaserGame = this; // Store the scene context
+            scoreDisplay = document.getElementById('scoreDisplay');
+            messageDisplay = document.getElementById('messageDisplay');
+            messageText = document.getElementById('messageText');
+            restartButton = document.getElementById('restartButton');
+            restartButton.addEventListener('click', restartGame);
+
+            gameOverOverlay = document.querySelector('.game-over-overlay');
+            finalScoreDisplay = document.getElementById('finalScore');
+            restartButtonOverlay = document.getElementById('restartButtonOverlay');
+            restartButtonOverlay.addEventListener('click', restartGame);
+
+            // Add particles
+            particles = phaserGame.add.particles(0, 0, 'blue', { // Now it's blue!
+                speed: 100,
+                scale: { start: 0.5, end: 0 },
+                blendMode: 'ADD',
+                alpha: { start: 0.8, end: 0 },
+                follow: null
+            });
+
+
+            // Create multiple squares
+            for (let i = 0; i < 10; i++) {
+                createSquare(Math.random() < 0.5 ? redSquareColor : blueSquareColor);
+            }
+
+            // Set up initial score display
+            scoreDisplay.textContent = `Score: ${score}`;
+            gameRunning = true;
+            messageDisplay.style.display = 'none';
+            gameOverOverlay.style.display = 'none';
+            numSquaresCreated = 10;
+
+        }
+
+        function createSquare(color) {
+            let x = Phaser.Math.Between(50, config.width - 50);
+            let y = Phaser.Math.Between(50, config.height - 50);
+            let size = Phaser.Math.Between(20, 50);
+            let square = phaserGame.add.graphics();
+            square.fillStyle(color, 1);
+            square.fillRect(-size / 2, -size / 2, size, size);
+            square.x = x;
+            square.y = y;
+
+             // Enable physics for the square
+            phaserGame.physics.add.existing(square);
+            square.body.setBounce(1, 1);
+            // Reduced velocity for slower movement
+            let velocityX = Phaser.Math.Between(50, 150);
+            let velocityY = Phaser.Math.Between(50, 150);
+            square.body.setVelocity(velocityX, velocityY);
+            square.body.setCollideWorldBounds(true);
+            square.setInteractive(new Phaser.Geom.Rectangle(-size / 2, -size / 2, size, size), Phaser.Geom.Rectangle.Contains);
+
+            // Attach the particle emitter to the square
+            square.particleEmitter = particles.createEmitter({
+                follow: square,
+                lifespan: 500,
+                speed: { min: 20, max: 60 },
+                scale: { start: 0.3, end: 0 },
+                blendMode: 'ADD',
+                emitZone: { type: 'random', source: new Phaser.Geom.Rectangle(-size/2, -size/2, size, size) }
+            });
+
+
+            square.on('pointerdown', () => {
+                if (!gameRunning) return;
+
+                if (color === blueSquareColor) {
+                    score += 1;
+                    scoreDisplay.textContent = `Score: ${score}`;
+                    // Emit particles on click as well
+                    particles.emitParticle(square.x, square.y, {
+                        duration: 200,
+                        frequency: 50,
+                    });
+                    square.destroy();
+                    squares.splice(squares.indexOf(square), 1);
+                    createSquare(Math.random() < 0.5 ? redSquareColor : blueSquareColor); // Create one more
+                    numSquaresCreated++;
+                    // Vibrate the device (if supported)
+                    if (navigator.vibrate) {
+                        navigator.vibrate(50);
+                    }
+                } else {
+                    score -= 2;
+                    scoreDisplay.textContent = `Score: ${score}`;
+                    // Emit particles on click
+                    particles.emitParticle(square.x, square.y, {
+                        duration: 300,
+                        frequency: 75,
+                    });
+                    square.destroy();
+                    squares.splice(squares.indexOf(square), 1);
+                    createSquare(Math.random() < 0.5 ? redSquareColor : blueSquareColor); // Create one more
+                    numSquaresCreated++;
+
+                    if (navigator.vibrate) {
+                         navigator.vibrate(100);
+                    }
+                    if (score <= -10) {
+                        gameOver();
+                    }
+                }
+            });
+
+            squares.push(square);
+            return square;
+        }
+
+
+
+        function update() {
+            if (!gameRunning) return;
+
+            squares.forEach(square => {
+                // Keep squares bouncing within bounds.
+                if (square.x < 0 || square.x > config.width) {
+                    square.body.velocity.x *= -1;
+                }
+                if (square.y < 0 || square.y > config.height) {
+                    square.body.velocity.y *= -1;
+                }
+            });
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            messageText.textContent = 'Game Over!';
+            messageDisplay.style.display = 'block';
+            finalScoreDisplay.textContent = score;
+            gameOverOverlay.style.display = 'flex';
+            // Destroy remaining squares
+            squares.forEach(square => {
+                square.destroy();
+                if(square.particleEmitter) {
+                    square.particleEmitter.destroy();
+                }
+            });
+            squares = [];
+            numSquaresCreated = 0;
+        }
+
+        function restartGame() {
+            score = 0;
+            scoreDisplay.textContent = `Score: ${score}`;
+            gameRunning = true;
+            messageDisplay.style.display = 'none';
+            gameOverOverlay.style.display = 'none';
+             // Create new squares
+            squares.forEach(square => {
+                square.destroy();
+                 if(square.particleEmitter){
+                    square.particleEmitter.destroy();
+                }
+            });
+            squares = [];
+            numSquaresCreated = 0;
+            for (let i = 0; i < 10; i++) {
+                createSquare(Math.random() < 0.5 ? redSquareColor : blueSquareColor);
+            }
+            numSquaresCreated = 10;
+        }
+
+    </script>
+</body>
+</html>
